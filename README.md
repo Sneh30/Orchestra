@@ -104,7 +104,7 @@ flowchart LR
 
 - Python 3.11+
 - Docker & Docker Compose
-- API keys for OpenAI, Anthropic, and Tavily
+- API keys for OpenAI, Anthropic, and Tavily (optional — deterministic mode works without them)
 
 ### 1. Clone and Configure
 
@@ -113,7 +113,8 @@ git clone https://github.com/Sneh30/multi-agent-research-orchestrator.git
 cd multi-agent-research-orchestrator
 
 cp .env.example .env
-# Edit .env with your API keys
+# Optional: edit .env with real API keys for live search/LLM
+# Works out of the box with LLM_PROVIDER=deterministic (no keys needed)
 ```
 
 ### 2. Start the Stack
@@ -122,10 +123,10 @@ cp .env.example .env
 docker compose up --build
 ```
 
-### 3. Access the API
+### 3. Access the Application
 
+- **Frontend UI:** http://localhost:8000/app
 - **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
 - **Health Check:** http://localhost:8000/health
 
 ### 4. Create a Research Run
@@ -160,6 +161,7 @@ curl http://localhost:8000/v1/research-runs/{run_id}/report \
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `GET` | `/app` | Frontend UI (no auth required) |
 | `GET` | `/health` | Health check |
 | `POST` | `/v1/research-runs` | Create a new research run |
 | `GET` | `/v1/research-runs` | List all research runs |
@@ -172,11 +174,13 @@ curl http://localhost:8000/v1/research-runs/{run_id}/report \
 
 ### Authentication
 
-All endpoints require an API key via the `X-API-Key` header:
+All API endpoints require an API key via the `X-API-Key` header:
 
 ```bash
 -H "X-API-Key: your-api-key"
 ```
+
+Public endpoints (no auth required): `/app`, `/docs`, `/metrics`, `/openapi.json`
 
 ### Request Example
 
@@ -223,6 +227,8 @@ multi-agent-research-orchestrator/
 │       ├── evaluation/      # Evaluation metrics and benchmarks
 │       ├── services/        # Business logic and orchestration
 │       └── main.py          # FastAPI application factory
+├── frontend/
+│   └── index.html           # Single-file dark-themed research UI
 ├── database/
 │   └── migrations/          # PostgreSQL migration scripts
 ├── docs/                    # Comprehensive documentation
@@ -289,9 +295,9 @@ ruff check backend tests && mypy backend && pytest
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `API_KEY` | API authentication key | `local-dev-key` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://...` |
-| `OPENAI_API_KEY` | OpenAI API key | — |
-| `ANTHROPIC_API_KEY` | Anthropic API key | — |
-| `TAVILY_API_KEY` | Tavily search API key | — |
+| `OPENAI_API_KEY` | OpenAI API key (optional in deterministic mode) | — |
+| `ANTHROPIC_API_KEY` | Anthropic API key (optional in deterministic mode) | — |
+| `TAVILY_API_KEY` | Tavily search API key (optional in deterministic mode) | — |
 | `LLM_PROVIDER` | LLM provider (openai/anthropic/deterministic) | `openai` |
 | `OPENAI_MODEL` | OpenAI model name | `gpt-4.1-mini` |
 | `ANTHROPIC_MODEL` | Anthropic model name | `claude-3-5-sonnet-latest` |
