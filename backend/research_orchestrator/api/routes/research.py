@@ -9,10 +9,22 @@ from research_orchestrator.api.schemas import (
     ResearchRunRequest,
     ResearchRunResponse,
 )
+from research_orchestrator.database.session import SessionFactory
 from research_orchestrator.services.research_service import ResearchService
 from research_orchestrator.services.telemetry import RESEARCH_RUNS_CREATED
 
 router = APIRouter(prefix="/v1/research-runs", tags=["research-runs"])
+
+
+async def _run_in_background(run_id: uuid.UUID) -> None:
+    async with SessionFactory() as session:
+        from research_orchestrator.core.config import get_settings
+
+        service = ResearchService(session, get_settings())
+        try:
+            await service.execute_run(run_id)
+        except Exception:
+            pass
 
 
 @router.post(
@@ -47,8 +59,7 @@ async def create_research_run(
         min_confidence=payload.min_confidence,
     )
     RESEARCH_RUNS_CREATED.inc()
-    if payload.execute_async:
-        background_tasks.add_task(service.execute_run, run.id)
+    background_tasks.add_task(_run_in_background, run.id)
     return ResearchRunResponse.model_validate(run)
 
 
@@ -107,13 +118,16 @@ async def get_research_run(
 )
 async def execute_research_run(
     run_id: uuid.UUID,
-    service: ResearchService = Depends(get_research_service),
 ) -> ExecuteRunResponse:
-    result = await service.execute_run(run_id)
-    return ExecuteRunResponse(
-        run_id=run_id,
-        status=result.get("status", "unknown"),
-        confidence_score=result.get("confidence_score"),
-        report_id=result.get("report_id"),
-    )
+    async with SessionFactory() as session:
+        from research_orchestrator.core.config import get_settings
+
+        service = ResearchService(session, get_settings())
+        result = await service.execute_run(run_id)
+        return ExecuteRunResponse(
+            run_id=run_id,
+            status=result.get("status", "unknown"),
+            confidence_score=result.get("confidence_score"),
+            report_id=result.get("report_id"),
+        )
 
