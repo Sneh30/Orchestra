@@ -1,6 +1,6 @@
 # Multi-Agent Research Orchestrator
 
-[![CI](https://github.com/your-username/multi-agent-research-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/multi-agent-research-orchestrator/actions/workflows/ci.yml)
+[![CI](https://github.com/Sneh30/multi-agent-research-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/Sneh30/multi-agent-research-orchestrator/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
@@ -109,7 +109,7 @@ flowchart LR
 ### 1. Clone and Configure
 
 ```bash
-git clone https://github.com/your-username/multi-agent-research-orchestrator.git
+git clone https://github.com/Sneh30/multi-agent-research-orchestrator.git
 cd multi-agent-research-orchestrator
 
 cp .env.example .env
