@@ -1,0 +1,399 @@
+openapi: 3.1.0
+info:
+  title: Multi-Agent Research Orchestrator
+  version: 0.1.0
+  description: LangGraph-powered research reports with verification, citations, source tracking, confidence scoring, and structured output.
+servers:
+  - url: http://localhost:8000
+security:
+  - ApiKeyAuth: []
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /v1/research-runs:
+    post:
+      tags: [research-runs]
+      summary: Create a research run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchRunRequest"
+            examples:
+              diligence:
+                value:
+                  query: What evidence supports enterprise adoption of AI agents in regulated industries?
+                  objective: Produce a board-ready market diligence memo.
+                  constraints:
+                    audience: founders
+                    prefer_primary_sources: true
+                  depth: advanced
+                  max_sources: 12
+                  min_confidence: 0.72
+                  execute_async: true
+      responses:
+        "202":
+          description: Research run accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    get:
+      tags: [research-runs]
+      summary: List research runs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Research runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResearchRun"
+  /v1/research-runs/{run_id}:
+    get:
+      tags: [research-runs]
+      summary: Get a research run
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Research run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchRun"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/research-runs/{run_id}/execute:
+    post:
+      tags: [research-runs]
+      summary: Execute a research run synchronously
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Graph execution result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  confidence_score:
+                    type: number
+                  report:
+                    $ref: "#/components/schemas/ReportPayload"
+  /v1/research-runs/{run_id}/report:
+    get:
+      tags: [reports]
+      summary: Get the verified report for a run
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/research-runs/{run_id}/sources:
+    get:
+      tags: [reports]
+      summary: List source records for a run
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Source"
+  /v1/evaluations/report:
+    post:
+      tags: [evaluations]
+      summary: Evaluate a report payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [report]
+              properties:
+                report:
+                  type: object
+      responses:
+        "200":
+          description: Evaluation metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvaluationResult"
+  /v1/evaluations/runs/{run_id}:
+    post:
+      tags: [evaluations]
+      summary: Evaluate a persisted run report
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Persisted evaluation metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EvaluationResult"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  parameters:
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    ResearchRunRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 10
+          maxLength: 4000
+        objective:
+          type: string
+          nullable: true
+        constraints:
+          type: object
+          default: {}
+        user_id:
+          type: string
+          nullable: true
+        depth:
+          type: string
+          enum: [basic, advanced]
+          default: advanced
+        max_sources:
+          type: integer
+          minimum: 3
+          maximum: 50
+        min_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        execute_async:
+          type: boolean
+          default: true
+    ResearchRun:
+      type: object
+      required: [id, query, status, depth, max_sources, min_confidence, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          nullable: true
+        query:
+          type: string
+        objective:
+          type: string
+          nullable: true
+        constraints:
+          type: object
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        depth:
+          type: string
+        max_sources:
+          type: integer
+        min_confidence:
+          type: number
+        confidence_score:
+          type: number
+          nullable: true
+        failure_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        executive_summary:
+          type: string
+        markdown:
+          type: string
+        structured_output:
+          type: object
+        confidence_score:
+          type: number
+        citation_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    ReportPayload:
+      type: object
+      properties:
+        title:
+          type: string
+        executive_summary:
+          type: string
+        markdown:
+          type: string
+        structured_output:
+          type: object
+        confidence_score:
+          type: number
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+    Citation:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        publisher:
+          type: string
+          nullable: true
+        credibility_score:
+          type: number
+    Source:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+        publisher:
+          type: string
+          nullable: true
+        author:
+          type: string
+          nullable: true
+        snippet:
+          type: string
+          nullable: true
+        credibility_score:
+          type: number
+        source_metadata:
+          type: object
+    EvaluationResult:
+      type: object
+      properties:
+        metric:
+          type: string
+        score:
+          type: number
+        details:
+          type: object
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+

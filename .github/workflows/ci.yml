@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: research_orchestrator
+          POSTGRES_USER: research
+          POSTGRES_PASSWORD: research
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U research -d research_orchestrator"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://research:research@localhost:5432/research_orchestrator
+      LLM_PROVIDER: deterministic
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+      - name: Apply schema
+        run: psql "postgresql://research:research@localhost:5432/research_orchestrator" -f database/migrations/001_init.sql
+        env:
+          PGPASSWORD: research
+      - name: Lint
+        run: ruff check backend tests
+      - name: Type check
+        run: mypy backend
+      - name: Test
+        run: pytest --cov=research_orchestrator --cov-report=term-missing
