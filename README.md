@@ -125,8 +125,7 @@ docker compose up --build
 
 ### 3. Access the Application
 
-- **Frontend UI:** http://localhost:8000/app
-- **Swagger UI:** http://localhost:8000/docs
+- **Frontend UI:** http://localhost:8000/docs
 - **Health Check:** http://localhost:8000/health
 
 ### 4. Create a Research Run
