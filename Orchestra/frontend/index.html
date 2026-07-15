@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Research Orchestrator</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-2: #232733;
+            --border: #2e3345;
+            --text: #e4e6ed;
+            --text-dim: #8b8fa3;
+            --accent: #6c5ce7;
+            --accent-glow: rgba(108, 92, 231, 0.3);
+            --green: #00b894;
+            --green-glow: rgba(0, 184, 148, 0.2);
+            --blue: #0984e3;
+            --orange: #fdcb6e;
+            --red: #e17055;
+            --radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green-glow);
+        }
+
+        .status-dot.offline { background: var(--red); box-shadow: none; }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 32px;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+            min-height: calc(100vh - 72px);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-dim);
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text);
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        textarea { resize: vertical; min-height: 80px; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .form-group { margin-bottom: 14px; }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .toggle-label { font-size: 0.85rem; color: var(--text-dim); }
+
+        .toggle {
+            width: 44px;
+            height: 24px;
+            background: var(--border);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.active { background: var(--accent); }
+
+        .toggle::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.2s;
+        }
+
+        .toggle.active::after { transform: translateX(20px); }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #5a4bd1);
+            color: white;
+        }
+
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 4px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .tab.active { background: var(--accent); color: white; }
+        .tab:hover:not(.active) { color: var(--text); background: var(--surface-2); }
+
+        .tab-panel { display: none; flex: 1; }
+        .tab-panel.active { display: flex; flex-direction: column; }
+
+        .runs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+
+        .run-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .run-item:hover { border-color: var(--accent); background: var(--surface-2); }
+        .run-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+        .run-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .run-query {
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-queued { background: rgba(253, 203, 110, 0.15); color: var(--orange); }
+        .badge-running { background: rgba(9, 132, 227, 0.15); color: var(--blue); }
+        .badge-completed { background: rgba(0, 184, 148, 0.15); color: var(--green); }
+        .badge-failed { background: rgba(225, 112, 85, 0.15); color: var(--red); }
+
+        .run-meta {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            gap: 12px;
+        }
+
+        .report-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+
+        .confidence-bar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .confidence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .confidence-score {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--green), var(--blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .confidence-track {
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--blue));
+            border-radius: 4px;
+            transition: width 0.8s ease;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--text); }
+        .stat-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .report-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            flex: 1;
+        }
+
+        .report-card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .report-content {
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+
+        .report-content h1 { font-size: 1.5rem; margin: 24px 0 12px; color: var(--text); }
+        .report-content h2 { font-size: 1.3rem; margin: 20px 0 10px; color: var(--text); }
+        .report-content h3 { font-size: 1.1rem; margin: 16px 0 8px; color: var(--text); }
+        .report-content p { margin-bottom: 12px; }
+        .report-content ul, .report-content ol { margin: 8px 0 12px 20px; }
+        .report-content li { margin-bottom: 4px; }
+        .report-content strong { color: var(--accent); }
+        .report-content code {
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        .report-content a { color: var(--blue); text-decoration: none; }
+        .report-content a:hover { text-decoration: underline; }
+        .report-content blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 16px;
+            margin: 12px 0;
+            color: var(--text-dim);
+        }
+        .report-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+        .report-content th, .report-content td {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        .report-content th { background: var(--bg); font-weight: 600; }
+
+        .sources-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .source-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .source-item:last-child { border-bottom: none; }
+
+        .source-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+
+        .source-url {
+            font-size: 0.8rem;
+            color: var(--blue);
+            word-break: break-all;
+            text-decoration: none;
+        }
+
+        .source-url:hover { text-decoration: underline; }
+
+        .source-credibility {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 6px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .cred-bar {
+            width: 60px;
+            height: 4px;
+            background: var(--bg);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .cred-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-state svg { margin-bottom: 16px; opacity: 0.3; }
+        .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--text); }
+        .empty-state p { font-size: 0.9rem; max-width: 300px; }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 20px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--green); }
+        .toast.error { border-color: var(--red); }
+
+        .api-key-input {
+            display: flex;
+            gap: 8px;
+        }
+
+        .api-key-input input { flex: 1; }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+            .report-panel { max-height: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Multi-Agent Research Orchestrator</h1>
+        <div class="header-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Checking connection...</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-title">API Configuration</div>
+                <div class="form-group">
+                    <label>Base URL</label>
+                    <input type="text" id="baseUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <div class="api-key-input">
+                        <input type="password" id="apiKey" value="local-dev-key" placeholder="Your API key">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">New Research Run</div>
+                <div class="form-group">
+                    <label>Research Query *</label>
+                    <textarea id="query" placeholder="What evidence supports enterprise adoption of AI agents in regulated industries?">What evidence supports enterprise adoption of AI agents in regulated industries?</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Objective</label>
+                    <input type="text" id="objective" value="Produce a board-ready diligence memo." placeholder="Optional objective">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Depth</label>
+                        <select id="depth">
+                            <option value="basic">Basic</option>
+                            <option value="advanced" selected>Advanced</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Sources</label>
+                        <input type="number" id="maxSources" value="12" min="3" max="50">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Min Confidence</label>
+                        <input type="number" id="minConfidence" value="0.72" min="0" max="1" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <div class="toggle-row" style="margin-top: 22px;">
+                            <span class="toggle-label">Execute Async</span>
+                            <div class="toggle active" id="asyncToggle" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Constraints (JSON)</label>
+                    <input type="text" id="constraints" value='{"audience": "founders", "prefer_primary_sources": true}' placeholder='{"key": "value"}'>
+                </div>
+                <button class="btn btn-primary" id="runBtn" onclick="createRun()">
+                    Start Research
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('runs')">Research Runs</button>
+                <button class="tab" onclick="switchTab('report')">Report</button>
+                <button class="tab" onclick="switchTab('sources')">Sources</button>
+            </div>
+
+            <div class="tab-panel active" id="runsPanel">
+                <div class="runs-list" id="runsList">
+                    <div class="empty-state">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <h3>No research runs yet</h3>
+                        <p>Configure your query and click "Start Research" to begin.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="reportPanel">
+                <div class="empty-state" id="reportEmpty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <h3>No report selected</h3>
+                    <p>Select a completed research run to view its report.</p>
+                </div>
+                <div class="report-panel" id="reportContent" style="display: none;">
+                    <div class="confidence-bar">
+                        <div class="confidence-header">
+                            <span class="card-title" style="margin: 0;">Confidence Score</span>
+                            <span class="confidence-score" id="confScore">0%</span>
+                        </div>
+                        <div class="confidence-track">
+                            <div class="confidence-fill" id="confFill" style="width: 0%"></div>
+                        </div>
+                        <div class="stats-row">
+                            <div class="stat">
+                                <div class="stat-value" id="statSources">0</div>
+                                <div class="stat-label">Sources</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value" id="statEvidence">0</div>
+                                <div class="stat-label">Evidence</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value" id="statCitations">0</div>
+                                <div class="stat-label">Citations</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-content" id="reportMarkdown"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="sourcesPanel">
+                <div class="empty-state" id="sourcesEmpty">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                    <h3>No sources loaded</h3>
+                    <p>Select a completed research run to view its sources.</p>
+                </div>
+                <div class="sources-panel" id="sourcesContent" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API = {
+            get headers() {
+                return {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': document.getElementById('apiKey').value
+                };
+            },
+            get base() { return document.getElementById('baseUrl').value; },
+
+            async get(path) {
+                const res = await fetch(`${this.base}${path}`, { headers: this.headers });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            },
+
+            async post(path, body) {
+                const res = await fetch(`${this.base}${path}`, {
+                    method: 'POST',
+                    headers: this.headers,
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            }
+        };
+
+        let runs = [];
+        let selectedRun = null;
+        let pollInterval = null;
+
+        // Check API connection
+        async function checkConnection() {
+            try {
+                await API.get('/health');
+                document.getElementById('statusDot').classList.remove('offline');
+                document.getElementById('statusText').textContent = 'Connected';
+                return true;
+            } catch (e) {
+                document.getElementById('statusDot').classList.add('offline');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                return false;
+            }
+        }
+
+        // Toast notifications
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Tab switching
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach((t, i) => {
+                t.classList.toggle('active', ['runs', 'report', 'sources'][i] === name);
+            });
+            document.querySelectorAll('.tab-panel').forEach((p, i) => {
+                p.classList.toggle('active', ['runs', 'report', 'sources'][i] === name);
+            });
+        }
+
+        // Create research run
+        async function createRun() {
+            const btn = document.getElementById('runBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Creating...';
+
+            try {
+                let constraints = {};
+                try {
+                    constraints = JSON.parse(document.getElementById('constraints').value || '{}');
+                } catch (e) {
+                    showToast('Invalid JSON in constraints', 'error');
+                    return;
+                }
+
+                const payload = {
+                    query: document.getElementById('query').value,
+                    objective: document.getElementById('objective').value || null,
+                    constraints,
+                    depth: document.getElementById('depth').value,
+                    max_sources: parseInt(document.getElementById('maxSources').value),
+                    min_confidence: parseFloat(document.getElementById('minConfidence').value),
+                    execute_async: document.getElementById('asyncToggle').classList.contains('active')
+                };
+
+                const run = await API.post('/v1/research-runs', payload);
+                runs.unshift(run);
+                renderRuns();
+                showToast(`Research run created: ${run.id.slice(0, 8)}...`);
+                switchTab('runs');
+
+                // Start polling if async
+                if (payload.execute_async) {
+                    startPolling(run.id);
+                } else {
+                    // Sync mode - refresh after a delay
+                    setTimeout(() => refreshRun(run.id), 2000);
+                }
+            } catch (e) {
+                showToast(`Error: ${e.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Start Research';
+            }
+        }
+
+        // Poll for run status
+        function startPolling(runId) {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                try {
+                    const updated = await API.get(`/v1/research-runs/${runId}`);
+                    const idx = runs.findIndex(r => r.id === runId);
+                    if (idx >= 0) runs[idx] = updated;
+                    renderRuns();
+
+                    if (updated.status === 'completed' || updated.status === 'failed') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        if (updated.status === 'completed') {
+                            showToast('Research run completed!');
+                            selectRun(runId);
+                        } else {
+                            showToast('Research run failed', 'error');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Poll error:', e);
+                }
+            }, 2000);
+        }
+
+        // Refresh a single run
+        async function refreshRun(runId) {
+            try {
+                const updated = await API.get(`/v1/research-runs/${runId}`);
+                const idx = runs.findIndex(r => r.id === runId);
+                if (idx >= 0) runs[idx] = updated;
+                renderRuns();
+
+                if (updated.status === 'completed') {
+                    showToast('Research run completed!');
+                    selectRun(runId);
+                }
+            } catch (e) {
+                console.error('Refresh error:', e);
+            }
+        }
+
+        // Load all runs
+        async function loadRuns() {
+            try {
+                runs = await API.get('/v1/research-runs?limit=50');
+                renderRuns();
+            } catch (e) {
+                console.error('Load runs error:', e);
+            }
+        }
+
+        // Render runs list
+        function renderRuns() {
+            const list = document.getElementById('runsList');
+            if (runs.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <h3>No research runs yet</h3>
+                        <p>Configure your query and click "Start Research" to begin.</p>
+                    </div>`;
+                return;
+            }
+
+            list.innerHTML = runs.map(run => `
+                <div class="run-item ${selectedRun?.id === run.id ? 'active' : ''}" onclick="selectRun('${run.id}')">
+                    <div class="run-item-header">
+                        <span class="run-query">${escapeHtml(run.query)}</span>
+                        <span class="badge badge-${run.status}">${run.status}</span>
+                    </div>
+                    <div class="run-meta">
+                        <span>${run.depth}</span>
+                        <span>${run.max_sources} sources</span>
+                        ${run.confidence_score ? `<span>${(run.confidence_score * 100).toFixed(1)}% confidence</span>` : ''}
+                        <span>${timeAgo(run.created_at)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Select and display a run
+        async function selectRun(runId) {
+            const run = runs.find(r => r.id === runId);
+            if (!run) return;
+            selectedRun = run;
+            renderRuns();
+
+            if (run.status === 'completed') {
+                // Load report and sources
+                try {
+                    const [report, sources] = await Promise.all([
+                        API.get(`/v1/research-runs/${runId}/report`),
+                        API.get(`/v1/research-runs/${runId}/sources`)
+                    ]);
+
+                    displayReport(report);
+                    displaySources(sources);
+                } catch (e) {
+                    showToast(`Error loading report: ${e.message}`, 'error');
+                }
+            } else if (run.status === 'queued' || run.status === 'running') {
+                document.getElementById('reportEmpty').style.display = 'flex';
+                document.getElementById('reportContent').style.display = 'none';
+                document.getElementById('sourcesEmpty').style.display = 'flex';
+                document.getElementById('sourcesContent').style.display = 'none';
+                startPolling(runId);
+            }
+        }
+
+        // Display report
+        function displayReport(report) {
+            document.getElementById('reportEmpty').style.display = 'none';
+            document.getElementById('reportContent').style.display = 'flex';
+
+            // Confidence score
+            const score = report.confidence_score || 0;
+            document.getElementById('confScore').textContent = `${(score * 100).toFixed(1)}%`;
+            document.getElementById('confFill').style.width = `${score * 100}%`;
+
+            // Stats from structured_output
+            const so = report.structured_output || {};
+            const conf = so.confidence || {};
+            document.getElementById('statSources').textContent = conf.sources || report.citation_count || 0;
+            document.getElementById('statEvidence').textContent = conf.evidence_items || 0;
+            document.getElementById('statCitations').textContent = report.citation_count || 0;
+
+            // Render markdown
+            document.getElementById('reportMarkdown').innerHTML = marked.parse(report.markdown || 'No markdown content');
+
+            switchTab('report');
+        }
+
+        // Display sources
+        function displaySources(sources) {
+            document.getElementById('sourcesEmpty').style.display = 'none';
+            const panel = document.getElementById('sourcesContent');
+            panel.style.display = 'block';
+
+            panel.innerHTML = sources.map(s => {
+                const credColor = s.credibility_score >= 0.8 ? 'var(--green)' :
+                                  s.credibility_score >= 0.5 ? 'var(--orange)' : 'var(--red)';
+                return `
+                    <div class="source-item">
+                        <div class="source-title">${escapeHtml(s.title)}</div>
+                        <a href="${escapeHtml(s.url)}" target="_blank" class="source-url">${escapeHtml(s.url)}</a>
+                        <div class="source-credibility">
+                            <span>Credibility:</span>
+                            <div class="cred-bar">
+                                <div class="cred-fill" style="width: ${s.credibility_score * 100}%; background: ${credColor}"></div>
+                            </div>
+                            <span>${(s.credibility_score * 100).toFixed(0)}%</span>
+                        </div>
+                        ${s.snippet ? `<p style="font-size: 0.8rem; color: var(--text-dim); margin-top: 6px; font-style: italic;">"${escapeHtml(s.snippet.slice(0, 200))}${s.snippet.length > 200 ? '...' : ''}"</p>` : ''}
+                    </div>`;
+            }).join('');
+        }
+
+        // Helpers
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function timeAgo(dateStr) {
+            const diff = Date.now() - new Date(dateStr).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins}m ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs}h ago`;
+            return `${Math.floor(hrs / 24)}d ago`;
+        }
+
+        // Init
+        checkConnection();
+        loadRuns();
+        setInterval(checkConnection, 30000);
+    </script>
+</body>
+</html>
