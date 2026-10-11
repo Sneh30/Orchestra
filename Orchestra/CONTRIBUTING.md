@@ -23,8 +23,8 @@ We are committed to providing a welcoming and inclusive experience for everyone.
    - Click the "Fork" button on GitHub
    - Clone your fork locally:
      ```bash
-     git clone https://github.com/YOUR_USERNAME/multi-agent-research-orchestrator.git
-     cd multi-agent-research-orchestrator
+     git clone https://github.com/Sneh30/Orchestra.git
+     cd Orchestra
      ```
 
 2. **Set Up Development Environment**
